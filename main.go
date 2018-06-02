@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 type myjar struct {
 	j []*http.Cookie
@@ -44,9 +45,21 @@ func (j myjar) Cookies(u *url.URL) []*http.Cookie {
 	return j.j
 }
 
-type record struct {
-	id float64
-	contents map[string]interface{}
+type record map[string]interface{}
+
+
+type base map[float64]record
+
+type ltime struct {
+	time.Time
+}
+
+func (t ltime) String() string {
+	return t.Format("02/01/2006")
+}
+
+func parseTime(f float64) ltime {
+	return ltime{time.Unix(int64(f/1000),0)}
 }
 
 func main() {
@@ -125,6 +138,42 @@ func main() {
 
 }
 
-func unmarshalMain(m map[string]interface{}) record {
-func unmarshalAssign(m map[string]interface{}) record {
+func (b base) unmarshalMain(m map[string]interface{}) {
+	id := m["missionaryId"].(float64)
+	b[id] = mapjoin(b[id], mapflatten(m))
+}
+
+func (b base) unmarshalAssign(m map[string]interface{}) {
+	id := m["missionaryId"].(float64)
+	m["assignmentEnd"] = parseTime(m["assignmentEnd"].(float64))
+	m["assignmentStart"] = parseTime(m["assignmentStart"].(float64))
+	m["mtcStartDate"] = parseTime(m["mtcStartDate"].(float64))
+	b[id] = mapjoin(b[id], m)
+}
+	
 func unmarshalContact(m map[string]interface{}) record {
+	
+func mapjoin(m, n map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		m = make(map[string]interface{})
+	}
+	for k, v := range n {
+		m[k] = v
+	}
+	return m
+}
+
+func mapflatten(m map[string]interface{}) map[string]interface{} {
+	for k, v := range m {
+		if w, ok := v.(map[string]interface{}); ok {
+			for l, x := range w {
+				m[l] = x
+			}
+			delete(m, k)
+		}
+	}
+}
+
+func dateString(u float64) string {
+	return time.Unix(int64(u/1000)).Format("02/01/2006")
+}
